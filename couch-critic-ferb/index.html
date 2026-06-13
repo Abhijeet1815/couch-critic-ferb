@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Couch-Critic Ferb</title>
+    <meta name="description" content="Discover your next favorite movie with Couch-Critic Ferb.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="logo.png" alt="Couch-Critic Ferb Logo" class="custom-logo">
+                <h1>Couch-Critic<br><span class="ferb-text">Ferb</span></h1>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3>Menu</h3>
+                <ul class="nav-links">
+                    <li class="active"><i class="fas fa-home"></i> Home</li>
+                    <li><i class="fas fa-compass"></i> Discover</li>
+                    <li><i class="fas fa-heart"></i> Watchlist</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Categories</h3>
+                <ul class="category-links">
+                    <li><i class="fas fa-meteor"></i> Action</li>
+                    <li><i class="fas fa-map"></i> Adventure</li>
+                    <li><i class="fas fa-rocket"></i> Sci-Fi</li>
+                    <li><i class="fas fa-ghost"></i> Horror</li>
+                    <li><i class="fas fa-heart"></i> Romance</li>
+                    <li><i class="fas fa-masks-theater"></i> Comedy</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Layout Wrapper -->
+        <div class="main-wrapper">
+            <!-- Top Navbar -->
+            <header class="topbar">
+                <nav class="topbar-nav">
+                    <a href="#" class="active">Home</a>
+                    <a href="#">Categories</a>
+                    <a href="#">My List</a>
+                    <a href="#">About</a>
+                </nav>
+                <div class="topbar-right">
+                    <div class="user-profile">
+                        <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="User Avatar" class="avatar">
+                        <i class="fas fa-bell notification-icon"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="content-area">
+                <!-- Hero Section -->
+                <section class="hero">
+                    <div class="hero-content">
+                        <h2>Find your next cinematic obsession.</h2>
+                        <div class="search-actions">
+                            <button class="action-btn outline">Explore Now</button>
+                            <div class="search-container">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="movie-search" placeholder="Search for movies, genres, actors..." autocomplete="off">
+                                <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+                            </div>
+                            <button class="action-btn filled">Surprise Me</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Loading State -->
+                <div id="loader" class="loader hidden">
+                    <div class="spinner"></div>
+                    <p>Ferb is analyzing...</p>
+                </div>
+
+                <!-- Results Section -->
+                <section id="results-section" class="results-section hidden">
+                    <div class="movies-grid" id="movies-grid">
+                        <!-- Movie Cards injected here -->
+                    </div>
+                </section>
+                
+                <footer class="main-footer">
+                    <div class="footer-left">
+                        <span>Couch-Critic Ferb</span>
+                        <span>Privacy</span>
+                        <span>Terms</span>
+                    </div>
+                    <div class="footer-right">
+                        <span>TMDB <i class="fas fa-film"></i></span>
+                        <i class="fab fa-twitter"></i>
+                        <i class="fab fa-facebook"></i>
+                        <i class="fab fa-instagram"></i>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
