@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Couch-Critic Ferb</title>
-    <meta name="description" content="Discover your next favorite movie with Couch-Critic Ferb.">
+    <title>Couch-Critic Ferb | Your Cinematic Companion</title>
+    <meta name="description" content="Discover your next favorite movie with Couch-Critic Ferb — AI-powered movie recommendations using NLP and FastAPI.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -20,25 +19,35 @@
                 <img src="logo.png" alt="Couch-Critic Ferb Logo" class="custom-logo">
                 <h1>Couch-Critic<br><span class="ferb-text">Ferb</span></h1>
             </div>
-            
+
             <div class="sidebar-section">
                 <h3>Menu</h3>
                 <ul class="nav-links">
-                    <li class="active"><i class="fas fa-home"></i> Home</li>
-                    <li><i class="fas fa-compass"></i> Discover</li>
-                    <li><i class="fas fa-heart"></i> Watchlist</li>
+                    <li id="sb-home" class="active" onclick="showPage('home')"><i class="fas fa-home"></i> Home</li>
+                    <li id="sb-discover" onclick="showPage('discover')"><i class="fas fa-compass"></i> Discover</li>
+                    <li id="sb-watchlist" onclick="showPage('watchlist')"><i class="fas fa-heart"></i> Watchlist</li>
                 </ul>
             </div>
 
             <div class="sidebar-section">
                 <h3>Categories</h3>
-                <ul class="category-links">
-                    <li><i class="fas fa-meteor"></i> Action</li>
-                    <li><i class="fas fa-map"></i> Adventure</li>
-                    <li><i class="fas fa-rocket"></i> Sci-Fi</li>
-                    <li><i class="fas fa-ghost"></i> Horror</li>
-                    <li><i class="fas fa-heart"></i> Romance</li>
-                    <li><i class="fas fa-masks-theater"></i> Comedy</li>
+                <ul class="category-links" id="sidebar-categories">
+                    <li onclick="filterCategory('Action')"><i class="fas fa-meteor"></i> Action</li>
+                    <li onclick="filterCategory('Adventure')"><i class="fas fa-map"></i> Adventure</li>
+                    <li onclick="filterCategory('Animation')"><i class="fas fa-paint-brush"></i> Animation</li>
+                    <li onclick="filterCategory('Comedy')"><i class="fas fa-masks-theater"></i> Comedy</li>
+                    <li onclick="filterCategory('Crime')"><i class="fas fa-user-secret"></i> Crime</li>
+                    <li onclick="filterCategory('Documentary')"><i class="fas fa-film"></i> Documentary</li>
+                    <li onclick="filterCategory('Drama')"><i class="fas fa-theater-masks"></i> Drama</li>
+                    <li onclick="filterCategory('Family')"><i class="fas fa-house-user"></i> Family</li>
+                    <li onclick="filterCategory('Fantasy')"><i class="fas fa-dragon"></i> Fantasy</li>
+                    <li onclick="filterCategory('Horror')"><i class="fas fa-ghost"></i> Horror</li>
+                    <li onclick="filterCategory('Mystery')"><i class="fas fa-magnifying-glass"></i> Mystery</li>
+                    <li onclick="filterCategory('Romance')"><i class="fas fa-heart"></i> Romance</li>
+                    <li onclick="filterCategory('Science Fiction')"><i class="fas fa-rocket"></i> Sci-Fi</li>
+                    <li onclick="filterCategory('Thriller')"><i class="fas fa-eye"></i> Thriller</li>
+                    <li onclick="filterCategory('War')"><i class="fas fa-shield-halved"></i> War</li>
+                    <li onclick="filterCategory('Western')"><i class="fas fa-hat-cowboy"></i> Western</li>
                 </ul>
             </div>
         </aside>
@@ -48,64 +57,171 @@
             <!-- Top Navbar -->
             <header class="topbar">
                 <nav class="topbar-nav">
-                    <a href="#" class="active">Home</a>
-                    <a href="#">Categories</a>
-                    <a href="#">My List</a>
-                    <a href="#">About</a>
+                    <a href="#" id="nav-home" class="active" onclick="showPage('home'); return false;">Home</a>
+                    <a href="#" id="nav-categories" onclick="toggleCategoriesPanel(); return false;">Categories</a>
+                    <a href="#" id="nav-watchlist" onclick="showPage('watchlist'); return false;">My List</a>
+                    <a href="#" id="nav-about" onclick="showPage('about'); return false;">About</a>
                 </nav>
                 <div class="topbar-right">
                     <div class="user-profile">
-                        <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="User Avatar" class="avatar">
                         <i class="fas fa-bell notification-icon"></i>
+                        <img src="https://ui-avatars.com/api/?name=CCF&background=6d28d9&color=fff" alt="User Avatar" class="avatar">
                     </div>
                 </div>
             </header>
 
+            <!-- Categories Dropdown Panel -->
+            <div id="categories-panel" class="categories-panel hidden">
+                <div class="categories-panel-grid" id="categories-panel-grid"></div>
+            </div>
+
             <!-- Main Content -->
             <main class="content-area">
-                <!-- Hero Section -->
-                <section class="hero">
-                    <div class="hero-content">
-                        <h2>Find your next cinematic obsession.</h2>
-                        <div class="search-actions">
-                            <button class="action-btn outline">Explore Now</button>
-                            <div class="search-container">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text" id="movie-search" placeholder="Search for movies, genres, actors..." autocomplete="off">
-                                <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
-                            </div>
-                            <button class="action-btn filled">Surprise Me</button>
+
+                <!-- ===== HOME PAGE ===== -->
+                <section id="page-home" class="page active">
+                    <div class="home-hero">
+                        <div class="home-brand">
+                            <img src="logo.png" alt="Couch-Critic Ferb" class="home-logo">
+                            <h1 class="home-title">Couch-Critic<br><span class="home-ferb">Ferb</span></h1>
+                        </div>
+                        <p class="home-tagline">Your AI-powered cinematic companion.<br>Discover movies you'll love — instantly.</p>
+                        <div class="home-buttons">
+                            <button class="home-btn primary" onclick="showPage('discover'); loadPopular();">
+                                <i class="fas fa-play"></i> Explore Movies
+                            </button>
+                            <button class="home-btn secondary" onclick="showPage('watchlist')">
+                                <i class="fas fa-heart"></i> My Watchlist
+                            </button>
+                            <button class="home-btn ghost" onclick="showPage('about')">
+                                <i class="fas fa-info-circle"></i> About
+                            </button>
+                        </div>
+                        <div class="home-stats">
+                            <div class="stat-chip"><span>4,800+</span> Movies</div>
+                            <div class="stat-chip"><span>NLP</span> Powered</div>
+                            <div class="stat-chip"><span>TMDB</span> Data</div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Loading State -->
-                <div id="loader" class="loader hidden">
-                    <div class="spinner"></div>
-                    <p>Ferb is analyzing...</p>
-                </div>
+                <!-- ===== DISCOVER PAGE ===== -->
+                <section id="page-discover" class="page">
+                    <div class="hero">
+                        <div class="hero-content">
+                            <h2>Discover your cinematic obsession.</h2>
+                            <div class="search-actions">
+                                <div class="search-container">
+                                    <i class="fas fa-search search-icon"></i>
+                                    <input type="text" id="movie-search" placeholder="Search for movies, genres, actors..." autocomplete="off">
+                                    <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+                                </div>
+                                <button class="action-btn filled" id="explore-now-btn" onclick="loadPopular()">
+                                    <i class="fas fa-compass"></i> Explore Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Results Section -->
-                <section id="results-section" class="results-section hidden">
-                    <div class="movies-grid" id="movies-grid">
-                        <!-- Movie Cards injected here -->
+                    <!-- Section heading -->
+                    <div class="results-header hidden" id="results-header">
+                        <h3 id="results-label">Top Picks</h3>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loader" class="loader hidden">
+                        <div class="spinner"></div>
+                        <p>Ferb is analyzing...</p>
+                    </div>
+
+                    <!-- Results Section -->
+                    <section id="results-section" class="results-section hidden">
+                        <div class="movies-grid" id="movies-grid"></div>
+                    </section>
+                </section>
+
+                <!-- ===== WATCHLIST PAGE ===== -->
+                <section id="page-watchlist" class="page">
+                    <div class="page-header">
+                        <h2><i class="fas fa-heart"></i> My Watchlist</h2>
+                        <p class="page-subtitle">Movies you've saved to watch later.</p>
+                    </div>
+                    <div id="watchlist-empty" class="empty-state hidden">
+                        <i class="fas fa-film empty-icon"></i>
+                        <p>Your watchlist is empty.<br>Heart a movie to save it here!</p>
+                        <button class="home-btn primary" onclick="showPage('discover')">Browse Movies</button>
+                    </div>
+                    <div class="movies-grid" id="watchlist-grid"></div>
+                </section>
+
+                <!-- ===== ABOUT PAGE ===== -->
+                <section id="page-about" class="page">
+                    <div class="about-hero">
+                        <img src="logo.png" alt="Couch-Critic Ferb" class="about-logo">
+                        <h2 class="about-title">About Couch-Critic-Ferb</h2>
+                        <p class="about-tagline">A smart movie recommender built with love and ML.</p>
+                    </div>
+                    <div class="about-cards">
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-brain"></i></div>
+                            <h3>NLP-Powered Recommendations</h3>
+                            <p>Uses Natural Language Processing on movie metadata — genres, keywords, cast, crew, and overview — to compute cosine similarity between movies.</p>
+                        </div>
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-server"></i></div>
+                            <h3>FastAPI Backend</h3>
+                            <p>The recommendation engine is served through a high-performance <strong>FastAPI</strong> backend, supporting async HTTP calls and a clean REST API.</p>
+                        </div>
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-database"></i></div>
+                            <h3>TMDB Dataset</h3>
+                            <p>Trained on the <strong>TMDB 5000 Movies</strong> dataset, containing rich metadata for nearly 5,000 films sourced from The Movie Database.</p>
+                        </div>
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-chart-line"></i></div>
+                            <h3>Scikit-Learn</h3>
+                            <p>The ML pipeline uses <strong>scikit-learn's</strong> TF-IDF vectorizer and cosine similarity to build a content-based filtering model.</p>
+                        </div>
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-film"></i></div>
+                            <h3>TMDB API</h3>
+                            <p>Movie posters and metadata are fetched live from the <strong>TMDB API</strong>, giving users up-to-date visuals for all recommendations.</p>
+                        </div>
+                        <div class="about-card">
+                            <div class="about-card-icon"><i class="fas fa-code"></i></div>
+                            <h3>Open Source</h3>
+                            <p>Built as a learning project to combine ML, REST APIs, and modern web design. Fully open-source and hackable.</p>
+                        </div>
+                    </div>
+                    <div class="about-tech-stack">
+                        <h3>Tech Stack</h3>
+                        <div class="tech-pills">
+                            <span class="tech-pill">Python</span>
+                            <span class="tech-pill">FastAPI</span>
+                            <span class="tech-pill">Scikit-Learn</span>
+                            <span class="tech-pill">Pandas</span>
+                            <span class="tech-pill">NLP / TF-IDF</span>
+                            <span class="tech-pill">TMDB API</span>
+                            <span class="tech-pill">HTML / CSS / JS</span>
+                            <span class="tech-pill">Uvicorn</span>
+                        </div>
                     </div>
                 </section>
-                
-                <footer class="main-footer">
-                    <div class="footer-left">
-                        <span>Couch-Critic Ferb</span>
-                        <span>Privacy</span>
-                        <span>Terms</span>
-                    </div>
-                    <div class="footer-right">
-                        <span>TMDB <i class="fas fa-film"></i></span>
-                        <i class="fab fa-twitter"></i>
-                        <i class="fab fa-facebook"></i>
-                        <i class="fab fa-instagram"></i>
-                    </div>
-                </footer>
+
             </main>
+
+            <footer class="main-footer">
+                <div class="footer-left">
+                    <span>Couch-Critic Ferb</span>
+                    <span>Privacy</span>
+                    <span>Terms</span>
+                </div>
+                <div class="footer-right">
+                    <span>Powered by TMDB <i class="fas fa-film"></i></span>
+                    <i class="fab fa-github"></i>
+                    <i class="fab fa-twitter"></i>
+                </div>
+            </footer>
         </div>
     </div>
 

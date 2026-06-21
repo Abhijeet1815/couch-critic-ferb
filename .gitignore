@@ -8,5 +8,6 @@ models/similarity.pkl
 *.jpeg
 .DS_Store
 .ipynb_checkpoints
+Resume_IEC2024022.pdf
 
 !couch-critic-ferb/logo.png
