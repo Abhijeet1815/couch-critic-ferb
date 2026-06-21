@@ -21,7 +21,7 @@ The application features a modern, glassmorphic UI built with pure HTML/CSS/JS a
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/couch-critic-ferb.git
+   git clone https://github.com/Abhijeet1815/couch-critic-ferb.git
    cd couch-critic-ferb
    ```
 
