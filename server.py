@@ -1,18 +1,64 @@
 import asyncio
 import httpx
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import pickle
 import pandas as pd
 import os
-from dotenv import load_dotenv
 import json
+from dotenv import load_dotenv
 
 load_dotenv()
 api_key = os.getenv("TMDB_API_KEY", "")
 
-app = FastAPI()
+# ── Global state ──────────────────────────────────────────────────────────────
+movies      = None
+similarity  = None
+metadata_df = None
+
+# In-memory poster lookup: {movie_id (int) -> "https://..." or ""}
+poster_cache: dict[int, str] = {}
+
+POSTER_CACHE_FILE = "models/poster_cache.json"
+
+
+# ── Startup ───────────────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global movies, similarity, metadata_df
+
+    # 1. Load ML models (blocking — must finish before requests are served)
+    try:
+        movies_dict = pickle.load(open('models/movies_dict.pkl', 'rb'))
+        movies      = pd.DataFrame(movies_dict)
+        similarity  = pickle.load(open('models/similarity.pkl', 'rb'))
+        metadata_df = pd.read_csv('data/tmdb_5000_movies.csv')
+        print(f"✅ Models loaded — {len(movies)} movies")
+    except Exception as e:
+        print(f"❌ Error loading models: {e}")
+        raise
+
+    # 2. Load poster cache from local JSON (instant — no network call)
+    if os.path.exists(POSTER_CACHE_FILE):
+        try:
+            with open(POSTER_CACHE_FILE) as f:
+                raw = json.load(f)
+            for mid, url in raw.items():
+                poster_cache[int(mid)] = url
+            hits = sum(1 for v in poster_cache.values() if v)
+            print(f"✅ Poster cache loaded: {hits}/{len(poster_cache)} posters ready")
+        except Exception as e:
+            print(f"⚠️  Could not read poster cache: {e}")
+    else:
+        print("⚠️  No poster cache found. Run: python3 build_poster_cache.py")
+
+    yield  # server is live here
+
+
+# ── App ───────────────────────────────────────────────────────────────────────
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,140 +68,118 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load Models & Metadata
-try:
-    movies_dict = pickle.load(open('models/movies_dict.pkl', 'rb'))
-    movies = pd.DataFrame(movies_dict)
-    similarity = pickle.load(open('models/similarity.pkl', 'rb'))
-    metadata_df = pd.read_csv('data/tmdb_5000_movies.csv')
-except Exception as e:
-    print(f"Error loading models or metadata: {e}")
 
-def get_movie_metadata(movie_id):
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def get_poster(movie_id: int) -> str:
+    """Instant O(1) lookup — no network, no I/O."""
+    return poster_cache.get(movie_id, "")
+
+
+def get_movie_metadata(movie_id: int):
     try:
-        row = metadata_df[metadata_df['id'] == movie_id].iloc[0]
+        row         = metadata_df[metadata_df['id'] == movie_id].iloc[0]
         genres_data = json.loads(row['genres'])
-        genres_str = " | ".join([g['name'] for g in genres_data[:2]]) if genres_data else "Action"
-        vote_average = float(row['vote_average'])
-        release_date = str(row['release_date'])
-        return genres_str, vote_average, release_date
-    except:
-        return "Unknown", 0.0, ""
+        genres_str  = " | ".join([g['name'] for g in genres_data[:2]]) if genres_data else ""
+        vote_avg    = float(row['vote_average'])
+        release     = str(row['release_date'])
+        return genres_str, vote_avg, release
+    except Exception:
+        return "", 0.0, ""
 
-async def fetch_poster_async(client, movie_id):
-    if not api_key:
-        return ""
-    try:
-        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
-        res = await client.get(url, timeout=3.0)
-        data = res.json()
-        if 'poster_path' in data and data['poster_path']:
-            return "https://image.tmdb.org/t/p/w500" + data['poster_path']
-        return ""
-    except:
-        return ""
 
+def movie_to_dict(movie_id: int, title: str) -> dict:
+    genres, vote, release = get_movie_metadata(movie_id)
+    return {
+        "id":           movie_id,
+        "title":        title,
+        "poster_path":  get_poster(movie_id),   # ← instant cache lookup
+        "release_date": release,
+        "vote_average": vote,
+        "genres":       genres,
+    }
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/api/search")
 async def search(q: str):
-    q = q.lower()
-    results_df = movies[movies['title'].str.lower().str.contains(q, na=False)].head(5)
-    
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for _, row in results_df.iterrows():
-            movie_id = int(row['movie_id'])
-            tasks.append(fetch_poster_async(client, movie_id))
-        posters = await asyncio.gather(*tasks)
-        
-    results = []
-    for i, (_, row) in enumerate(results_df.iterrows()):
-        movie_id = int(row['movie_id'])
-        genres, vote, release_date = get_movie_metadata(movie_id)
-        results.append({
-            "id": movie_id,
-            "title": row['title'],
-            "poster_path": posters[i],
-            "release_date": release_date,
-            "vote_average": vote,
-            "genres": genres
-        })
-    return {"results": results}
+    q_lower    = q.lower()
+    results_df = movies[movies['title'].str.lower().str.contains(q_lower, na=False)].head(8)
+    return {
+        "results": [
+            movie_to_dict(int(row['movie_id']), row['title'])
+            for _, row in results_df.iterrows()
+        ]
+    }
+
 
 @app.get("/api/recommend/{movie_title}")
 async def recommend(movie_title: str):
-    if 'similarity' not in globals():
-        raise HTTPException(status_code=500, detail="Machine learning models are not loaded. Please run movie-recommender-system.py to generate models/similarity.pkl first.")
+    if 'similarity' not in globals() or similarity is None:
+        raise HTTPException(status_code=500, detail="ML model not loaded. Run movie-recommender-system.py first.")
 
     if movie_title not in movies['title'].values:
         matches = movies[movies['title'].str.lower() == movie_title.lower()]
         if matches.empty:
-            raise HTTPException(status_code=404, detail="Movie not found in database")
+            raise HTTPException(status_code=404, detail="Movie not found")
         movie_title = matches.iloc[0]['title']
 
-    movie_index = movies[movies['title'] == movie_title].index[0]
-    distances = similarity[movie_index]
-    movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:9]
-    
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for i in movies_list:
-            movie_id = int(movies.iloc[i[0]].movie_id)
-            tasks.append(fetch_poster_async(client, movie_id))
-        posters = await asyncio.gather(*tasks)
+    idx        = movies[movies['title'] == movie_title].index[0]
+    distances  = similarity[idx]
+    top        = sorted(enumerate(distances), reverse=True, key=lambda x: x[1])[1:9]
 
-    recommended_movies = []
-    for idx, i in enumerate(movies_list):
-        movie_id = int(movies.iloc[i[0]].movie_id)
-        title = movies.iloc[i[0]].title
-        genres, vote, release_date = get_movie_metadata(movie_id)
-        
-        recommended_movies.append({
-            "id": movie_id,
-            "title": title,
-            "poster_path": posters[idx],
-            "release_date": release_date, 
-            "overview": "Recommended based on " + movie_title,
-            "vote_average": vote,
-            "genres": genres
-        })
-    return {"results": recommended_movies}
+    return {
+        "results": [
+            movie_to_dict(int(movies.iloc[i].movie_id), movies.iloc[i].title)
+            for i, _ in top
+        ]
+    }
+
 
 @app.get("/api/category/{genre}")
 async def get_by_category(genre: str):
-    # Filter metadata_df where genre exists
     def has_genre(json_str):
         try:
-            g_list = json.loads(json_str)
-            return any(g['name'].lower() == genre.lower() for g in g_list)
-        except:
+            return any(g['name'].lower() == genre.lower() for g in json.loads(json_str))
+        except Exception:
             return False
-            
-    filtered = metadata_df[metadata_df['genres'].apply(has_genre)].sort_values(by='vote_average', ascending=False)
-    # Ensure they are in our ML movies_dict too
-    ml_movie_ids = set(movies['movie_id'].astype(int))
-    filtered = filtered[filtered['id'].isin(ml_movie_ids)].head(8)
-    
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for _, row in filtered.iterrows():
-            tasks.append(fetch_poster_async(client, int(row['id'])))
-        posters = await asyncio.gather(*tasks)
-        
+
+    ml_ids   = set(movies['movie_id'].astype(int))
+    filtered = (
+        metadata_df[metadata_df['genres'].apply(has_genre)]
+        .sort_values(by='vote_average', ascending=False)
+    )
+    filtered = filtered[filtered['id'].isin(ml_ids)].head(12)
+
     results = []
-    for i, (_, row) in enumerate(filtered.iterrows()):
-        movie_id = int(row['id'])
-        genres, vote, release_date = get_movie_metadata(movie_id)
-        # title is in our movies_dict
-        title_matches = movies[movies['movie_id'] == movie_id]
-        title = title_matches.iloc[0]['title'] if not title_matches.empty else row['title']
-        results.append({
-            "id": movie_id,
-            "title": title,
-            "poster_path": posters[i],
-            "release_date": release_date,
-            "vote_average": vote,
-            "genres": genres
-        })
+    for _, row in filtered.iterrows():
+        mid   = int(row['id'])
+        match = movies[movies['movie_id'] == mid]
+        title = match.iloc[0]['title'] if not match.empty else row['title']
+        results.append(movie_to_dict(mid, title))
     return {"results": results}
+
+
+@app.get("/api/popular")
+async def get_popular():
+    ml_ids = set(movies['movie_id'].astype(int))
+    top    = (
+        metadata_df[metadata_df['id'].isin(ml_ids)]
+        .sort_values(by='vote_average', ascending=False)
+        .head(24)
+    )
+    results = []
+    for _, row in top.iterrows():
+        mid   = int(row['id'])
+        match = movies[movies['movie_id'] == mid]
+        title = match.iloc[0]['title'] if not match.empty else row['title']
+        results.append(movie_to_dict(mid, title))
+    return {"results": results}
+
+
+@app.get("/api/cache_status")
+async def cache_status():
+    hits = sum(1 for v in poster_cache.values() if v)
+    return {"total": len(poster_cache), "posters_found": hits}
+
 
 app.mount("/", StaticFiles(directory="couch-critic-ferb", html=True), name="static")
