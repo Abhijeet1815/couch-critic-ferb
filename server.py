@@ -83,6 +83,9 @@ async def search(q: str):
 
 @app.get("/api/recommend/{movie_title}")
 async def recommend(movie_title: str):
+    if 'similarity' not in globals():
+        raise HTTPException(status_code=500, detail="Machine learning models are not loaded. Please run movie-recommender-system.py to generate models/similarity.pkl first.")
+
     if movie_title not in movies['title'].values:
         matches = movies[movies['title'].str.lower() == movie_title.lower()]
         if matches.empty:
@@ -143,7 +146,7 @@ async def get_by_category(genre: str):
         movie_id = int(row['id'])
         genres, vote, release_date = get_movie_metadata(movie_id)
         # title is in our movies_dict
-        title_matches = movies[movies['movie_id'] == str(movie_id)]
+        title_matches = movies[movies['movie_id'] == movie_id]
         title = title_matches.iloc[0]['title'] if not title_matches.empty else row['title']
         results.append({
             "id": movie_id,
