@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import os
 from dotenv import load_dotenv
+import gzip
 
 load_dotenv()
 api_key = os.getenv("TMDB_API_KEY")
@@ -28,7 +29,7 @@ def recommend(movie):
 movies_dict= pickle.load(open('models/movies_dict.pkl', 'rb'))
 movies = pd.DataFrame(movies_dict)
 st.title('Movie Recommender System')
-similarity = pickle.load(open('models/similarity.pkl', 'rb'))
+similarity = pickle.load(gzip.open('models/similarity.pkl.gz', 'rb'))
 movie_name =st.selectbox(
     'Which kind of movie do you want to watch?',
                      movies['title'].values)

@@ -6,6 +6,7 @@ from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pickle
+import gzip
 
 # Load datasets
 movies = pd.read_csv('data/tmdb_5000_movies.csv')
@@ -69,4 +70,4 @@ def recommend(movie):
 # Save files for deployment
 pickle.dump(movies_new, open('models/movies.pkl', 'wb'))
 pickle.dump(movies_new.to_dict(), open('models/movies_dict.pkl', 'wb'))
-pickle.dump(similarity, open('models/similarity.pkl', 'wb'))
+pickle.dump(similarity, gzip.open('models/similarity.pkl.gz', 'wb'))

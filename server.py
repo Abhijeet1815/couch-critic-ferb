@@ -8,6 +8,7 @@ import pickle
 import pandas as pd
 import os
 import json
+import gzip
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,7 +34,7 @@ async def lifespan(app: FastAPI):
     try:
         movies_dict = pickle.load(open('models/movies_dict.pkl', 'rb'))
         movies      = pd.DataFrame(movies_dict)
-        similarity  = pickle.load(open('models/similarity.pkl', 'rb'))
+        similarity  = pickle.load(gzip.open('models/similarity.pkl.gz', 'rb'))
         metadata_df = pd.read_csv('data/tmdb_5000_movies.csv')
         print(f"✅ Models loaded — {len(movies)} movies")
     except Exception as e:
